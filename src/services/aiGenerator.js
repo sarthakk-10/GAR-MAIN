@@ -133,7 +133,10 @@ const validateQuestions = (questions) => (
     .filter(Boolean)
 );
 
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
 export const generateQuestions = async (text, apiKey = null) => {
+  await delay(2000); // 2 second delay between calls
   const cleanText = normalizeWhitespace(text);
   const extractedMCQs = extractMCQsRobustly(cleanText);
 
@@ -142,12 +145,17 @@ export const generateQuestions = async (text, apiKey = null) => {
     console.log(`Using ${extractedMCQs.length} extracted MCQs from the PDF/question bank.`);
     rawPool = extractedMCQs;
   } else {
-    if (!apiKey) {
-      throw new Error("No complete MCQs were found in this PDF. For theory notes, please save a Gemini API key so the app can generate proper conceptual questions instead of random local guesses.");
+    const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || apiKey;
+
+    if (!API_KEY) {
+      throw new Error(
+        'Gemini API key not found. ' +
+        'Add VITE_GEMINI_API_KEY to .env.local'
+      );
     }
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
       const sourceExcerpt = cleanText; // Full text with no page limit or truncation
 
       const prompt = `You are generating revision quiz questions from the user's uploaded PDF/notes.

@@ -28,10 +28,15 @@ export default function GameScreen({
   questionIndex,
   totalQuestions,
   roundNumber,
+  chamberCount,
+  bulletCount,
+  bulletsFiredThisRound,
+  roundTransition,
   playerLives,
   botLives,
   currentChamber,
   spentChambers,
+  bulletChambers,
   bulletFired,
   probability,
   turn,
@@ -113,6 +118,48 @@ export default function GameScreen({
         animate={playerHit || botHit ? { opacity: [1, 0.4, 1] } : { opacity: 1 }}
         transition={{ duration: 0.1, repeat: (playerHit || botHit) ? 5 : 0 }}
       />
+
+      {/* Round Transition Overlay */}
+      <AnimatePresence>
+        {roundTransition && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[rgba(10,8,5,0.95)] backdrop-blur-md"
+          >
+            <div className="text-center flex flex-col items-center border border-[rgba(245,158,11,0.3)] p-12 rounded-[16px] bg-[rgba(0,0,0,0.5)] shadow-[0_0_40px_rgba(245,158,11,0.15)]">
+              <h2 className="text-[32px] md:text-[48px] font-bold tracking-[6px] text-white mb-2 uppercase">
+                ROUND {roundNumber} LOADED
+              </h2>
+              <div className="flex items-center gap-4 text-[#a8a29e] font-mono text-lg mb-8 uppercase tracking-[3px]">
+                <span>{bulletCount} BULLETS</span>
+                <span className="text-[#f59e0b]">•</span>
+                <span>{chamberCount} CHAMBERS</span>
+              </div>
+              
+              <div className="flex flex-col items-center mb-6">
+                <span className="text-sm text-[#f59e0b] tracking-[4px] uppercase font-bold mb-2">LETHALITY RISK</span>
+                <span className="text-[64px] font-bold leading-none text-[#ef4444] drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]">
+                  {probability.toFixed(0)}%
+                </span>
+              </div>
+
+              {roundNumber === 6 && (
+                <motion.div
+                  animate={{ opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="mt-4 bg-[rgba(239,68,68,0.1)] border border-[#ef4444] px-6 py-3 rounded text-[#ef4444] font-bold tracking-[4px] flex items-center gap-3"
+                >
+                  <Skull className="w-6 h-6" />
+                  ⚠️ INSTANT DEATH ROUND ⚠️
+                  <Skull className="w-6 h-6" />
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bot Shoot Flash Overlay */}
       <AnimatePresence>
@@ -283,6 +330,8 @@ export default function GameScreen({
             )}
           </AnimatePresence>
 
+
+
           {/* Chamber Panel */}
           <div className="w-full max-w-[600px] z-30 mx-auto">
             <Cylinder
@@ -291,6 +340,10 @@ export default function GameScreen({
               isSpinning={isSpinning}
               bulletFired={bulletFired}
               probability={probability}
+              chamberCount={chamberCount}
+              bulletCount={bulletCount}
+              bulletsFiredThisRound={bulletsFiredThisRound}
+              bulletChambers={bulletChambers}
             />
           </div>
 

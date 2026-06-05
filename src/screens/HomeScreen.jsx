@@ -30,7 +30,7 @@ export default function HomeScreen({
   questionCount,
   setQuestionCount,
   onStart,
-  hasApiKey,
+
   pdfParsedText,
   setPdfParsedText,
   pdfFileName,
@@ -379,15 +379,6 @@ export default function HomeScreen({
                 </div>
               </div>
 
-              {/* Local key banner */}
-              {pdfFileName && !hasApiKey && (
-                <div className="bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.2)] p-2 rounded-[6px] text-[11px] text-[#a8a29e] flex gap-2">
-                  <Sparkles className="w-3.5 h-3.5 shrink-0 text-[#f59e0b]" />
-                  <p className="leading-tight">
-                    <strong>Local Mode:</strong> Using direct document text. Add Gemini key above to generate dynamic questions.
-                  </p>
-                </div>
-              )}
 
               {/* Start Button */}
               <button

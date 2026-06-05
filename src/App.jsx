@@ -5,7 +5,7 @@ import HomeScreen from './screens/HomeScreen';
 import GameScreen from './screens/GameScreen';
 import ResultScreen from './screens/ResultScreen';
 import HistoryScreen from './screens/HistoryScreen';
-import ApiKeyModal from './components/ApiKeyModal';
+
 import { extractTextFromPdf } from './services/pdfParser';
 import { generateQuestions } from './services/aiGenerator';
 import logoImg from './assets/logo.png';
@@ -23,7 +23,7 @@ const BOT_TAUNTS = {
     idle: [
       "I'm ready when you are.",
       "Just select your answer, I guess.",
-      "This is my first live fire exercise!"
+      "You have no chance of winning, give up!"
     ],
     shootPlayerBang: [
       "I hit! I mean, system damage recorded.",
@@ -95,8 +95,7 @@ export default function App() {
   const [playerName, setPlayerName] = useState('REVISER');
   const [difficulty, setDifficulty] = useState('Medium');
   const [questionCount, setQuestionCount] = useState(10);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('active_recall_sound') !== 'off');
 
   // PDF Parser State
@@ -121,11 +120,36 @@ export default function App() {
   const [botLives, setBotLives] = useState(3);
   
   // Revolver Cylinder State
-  const [bulletChamber, setBulletChamber] = useState(0); // 0-5
-  const [currentChamber, setCurrentChamber] = useState(0); // 0-5
+  const [bulletChambers, setBulletChambers] = useState([]); // Array of bullet indices
+  const [chamberCount, setChamberCount] = useState(6);
+  const [bulletCount, setBulletCount] = useState(1);
+  const [shotsFiredThisRound, setShotsFiredThisRound] = useState(0);
+  const [bulletsFiredThisRound, setBulletsFiredThisRound] = useState(0);
+  const [roundTransition, setRoundTransition] = useState(false);
+  
+  const [currentChamber, setCurrentChamber] = useState(0); // 0-N
   const [spentChambers, setSpentChambers] = useState([]); // clicked indices
   const [isSpinning, setIsSpinning] = useState(false);
   const [bulletFired, setBulletFired] = useState(false);
+
+  // New specific metric trackers requested by user
+  const [highestRiskFaced, setHighestRiskFaced] = useState(0);
+  const [lowRiskCorrect, setLowRiskCorrect] = useState(0);
+  const [lowRiskTotal, setLowRiskTotal] = useState(0);
+  const [highRiskCorrect, setHighRiskCorrect] = useState(0);
+  const [highRiskTotal, setHighRiskTotal] = useState(0);
+
+  function getRoundConfig(round) {
+    const configs = {
+      1: { chambers: 6, bullets: 1 },
+      2: { chambers: 5, bullets: 2 },
+      3: { chambers: 4, bullets: 3 },
+      4: { chambers: 3, bullets: 2 },
+      5: { chambers: 2, bullets: 1 },
+      6: { chambers: 2, bullets: 2 }, // INSTANT DEATH ROUND
+    };
+    return configs[round] || configs[6];
+  }
 
   // Active Gameplay Phase
   const [gameState, setGameState] = useState('answering'); // 'answering', 'shooting_choice', 'outcome_overlay'
@@ -149,6 +173,7 @@ export default function App() {
   const previousScreenRef = useRef(screen);
   const questionPoolRef = useRef([]);
   const poolIndexRef = useRef(0);
+  const questionStartTimeRef = useRef(Date.now());
 
   useEffect(() => {
     if (previousScreenRef.current === screen) return undefined;
@@ -182,17 +207,13 @@ export default function App() {
     totalQuestionsAnswered: 0,
     shotsSurvived: 0,
     maxProbabilitySurvived: 0,
-    roundsSurvived: 0
+    roundsSurvived: 0,
+    roundByRound: [],
+    currentRoundData: { round: 1, correct: 0, total: 0, maxRisk: 0 },
+    totalResponseTimeMs: 0
   });
 
-  const handleSaveApiKey = (key) => {
-    setApiKey(key);
-    if (key) {
-      localStorage.setItem('gemini_api_key', key);
-    } else {
-      localStorage.removeItem('gemini_api_key');
-    }
-  };
+
 
   const handleToggleSound = () => {
     setSoundEnabled(prev => {
@@ -227,10 +248,13 @@ export default function App() {
     }
   };
 
-  // Calculates probability: 1 / remaining chambers
+  // Calculates probability
   const getProbability = () => {
-    const totalRemaining = 6 - spentChambers.length;
-    return totalRemaining > 0 ? (1 / totalRemaining) * 100 : 100;
+    const remainingChambers = chamberCount - shotsFiredThisRound;
+    if (remainingChambers <= 0) return 0;
+    
+    const remainingBullets = bulletChambers.filter(b => !spentChambers.includes(b)).length;
+    return (remainingBullets / remainingChambers) * 100;
   };
 
   // Initialize Game Session
@@ -238,9 +262,23 @@ export default function App() {
     setIsSpinning(true);
     setIsGenerating(true);
     
-    // Set random bullet chamber
-    const randomBullet = Math.floor(Math.random() * 6);
-    setBulletChamber(randomBullet);
+    // Set initial round config
+    const config = getRoundConfig(1);
+    setChamberCount(config.chambers);
+    setBulletCount(config.bullets);
+    setShotsFiredThisRound(0);
+    setBulletsFiredThisRound(0);
+
+    const generateBullets = (bCount, cCount) => {
+      const bArr = [];
+      while (bArr.length < bCount) {
+        const r = Math.floor(Math.random() * cCount);
+        if (!bArr.includes(r)) bArr.push(r);
+      }
+      return bArr;
+    };
+    
+    setBulletChambers(generateBullets(config.bullets, config.chambers));
     setCurrentChamber(0);
     setSpentChambers([]);
     setBulletFired(false);
@@ -251,8 +289,17 @@ export default function App() {
       totalQuestionsAnswered: 0,
       shotsSurvived: 0,
       maxProbabilitySurvived: 0,
-      roundsSurvived: 0
+      roundsSurvived: 0,
+      roundByRound: [],
+      currentRoundData: { round: 1, correct: 0, total: 0, maxRisk: 0 },
+      totalResponseTimeMs: 0
     });
+    setHighestRiskFaced(0);
+    setLowRiskCorrect(0);
+    setLowRiskTotal(0);
+    setHighRiskCorrect(0);
+    setHighRiskTotal(0);
+    
     setPlayerLives(3);
     setBotLives(3);
     setRoundNumber(1);
@@ -279,7 +326,7 @@ export default function App() {
       }
 
       console.log(`[START GAME] Launching question generation from PDF content...`);
-      const gameQsPool = await generateQuestions(trimmedText, apiKey);
+      const gameQsPool = await generateQuestions(trimmedText);
       
       if (!gameQsPool || gameQsPool.length === 0) {
         throw new Error("No questions could be extracted or generated from your text. Make sure your PDF/notes contain readable text.");
@@ -313,6 +360,7 @@ export default function App() {
 
       setIsSpinning(false);
       setIsGenerating(false);
+      questionStartTimeRef.current = Date.now();
       setScreen('game');
     } catch (error) {
       console.error("[START GAME] Question Generation Failed:", error);
@@ -324,14 +372,6 @@ export default function App() {
 
   const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  const reloadGun = () => {
-    const randomBullet = Math.floor(Math.random() * 6);
-    setBulletChamber(randomBullet);
-    setCurrentChamber(0);
-    setSpentChambers([]);
-    setBulletFired(false);
-    setRoundNumber(r => r + 1);
-  };
 
   // Bot Auto-Shoot Hook (fires when turn becomes 'bot')
   useEffect(() => {
@@ -375,11 +415,28 @@ export default function App() {
     const currentQuestion = questions[currentQuestionIndex];
     const isCorrect = optionKey === currentQuestion.correctAnswer;
     
+    const timeTaken = Date.now() - questionStartTimeRef.current;
+    
     setStats(prev => ({
       ...prev,
       totalQuestionsAnswered: prev.totalQuestionsAnswered + 1,
-      correctAnswers: prev.correctAnswers + (isCorrect ? 1 : 0)
+      correctAnswers: prev.correctAnswers + (isCorrect ? 1 : 0),
+      totalResponseTimeMs: prev.totalResponseTimeMs + timeTaken,
+      currentRoundData: {
+        ...prev.currentRoundData,
+        correct: prev.currentRoundData.correct + (isCorrect ? 1 : 0),
+        total: prev.currentRoundData.total + 1
+      }
     }));
+
+    const currentRisk = getProbability();
+    if (currentRisk < 50) {
+      setLowRiskTotal(prev => prev + 1);
+      if (isCorrect) setLowRiskCorrect(prev => prev + 1);
+    } else {
+      setHighRiskTotal(prev => prev + 1);
+      if (isCorrect) setHighRiskCorrect(prev => prev + 1);
+    }
 
     if (isCorrect) {
       setAnswerStatus('correct');
@@ -402,49 +459,59 @@ export default function App() {
 
   // Firing Mechanism Trigger Pull
   const shoot = (shooter, target) => {
-    // Check if a shot has already been fired in this round
     if (isShotFired) {
-      console.log(`[SHOOT BLOCKED] Shot already fired this round. Shooter: ${shooter}, Target: ${target}`);
       return;
     }
 
     setIsShotFired(true);
-    clearPendingTimers(); // Clear all timeouts immediately on any shoot action
-    console.log(`[SHOOT] ${shooter.toUpperCase()} fires at ${target.toUpperCase()}. Current Chamber: ${currentChamber}, Bullet Chamber: ${bulletChamber}`);
+    clearPendingTimers();
+
+    const config = getRoundConfig(roundNumber);
+    const totalShotsThisRound = shotsFiredThisRound + 1;
+    setShotsFiredThisRound(totalShotsThisRound);
+
+    const currentRisk = getProbability();
+    if (currentRisk > highestRiskFaced) {
+      setHighestRiskFaced(currentRisk);
+    }
+
+    setStats(prev => ({
+      ...prev,
+      currentRoundData: {
+        ...prev.currentRoundData,
+        maxRisk: Math.max(prev.currentRoundData.maxRisk || 0, currentRisk)
+      }
+    }));
 
     setShootTarget(target);
     setGameState('outcome_overlay');
 
-    // Bullet checks
-    const isBang = currentChamber === bulletChamber;
-    const nextChamber = (currentChamber + 1) % 6;
-    
+    const isBang = bulletChambers.includes(currentChamber);
+    const nextChamber = (currentChamber + 1) % config.chambers;
+
+    setSpentChambers(prev => [...prev, currentChamber]);
+
     if (isBang) {
       setBulletFired(true);
+      setBulletsFiredThisRound(prev => prev + 1);
       setOverlayType('bang');
       playShotSound('bang');
 
       if (shooter === 'player') {
         if (target === 'self') {
-          // Player shot self -> Player loses life
           setPlayerLives(l => l - 1);
         } else {
-          // Player shot bot -> Bot loses life
           setBotLives(l => l - 1);
         }
       } else {
-        // Bot is shooter (always shoots player in this mode)
         setPlayerLives(l => l - 1);
         setBotMessage(getRandomElement(BOT_TAUNTS[botName].shootPlayerBang));
       }
     } else {
       setOverlayType('click');
       playShotSound('click');
-      setSpentChambers(prev => [...prev, currentChamber]);
 
-      // If player shot self and survived, log stats
       if (shooter === 'player' && target === 'self') {
-        const currentProb = getProbability();
         setStats(prev => ({
           ...prev,
           shotsSurvived: prev.shotsSurvived + 1,
@@ -455,10 +522,9 @@ export default function App() {
       if (shooter === 'bot') {
         setBotMessage(getRandomElement(BOT_TAUNTS[botName].shootPlayerBlank));
       }
-
-      // Rotate cylinder
-      setCurrentChamber(nextChamber);
     }
+
+    setCurrentChamber(nextChamber);
   };
 
   // Player Trigger Handler (Correct Answer Actions)
@@ -478,35 +544,74 @@ export default function App() {
       return;
     }
 
-    if (bulletFired) {
-      reloadGun();
-    }
+    const config = getRoundConfig(roundNumber);
+    const allShotsFired = shotsFiredThisRound >= config.chambers;
 
-    // Set state for next question
+    if (allShotsFired) {
+      const nextRound = roundNumber + 1;
+      
+      if (nextRound > 6) {
+        endSession();
+        return;
+      }
+
+      setRoundTransition(true);
+
+      setRoundNumber(nextRound);
+      const nextConfig = getRoundConfig(nextRound);
+      setChamberCount(nextConfig.chambers);
+      setBulletCount(nextConfig.bullets);
+      setShotsFiredThisRound(0);
+      setBulletsFiredThisRound(0);
+
+      const generateBullets = (bCount, cCount) => {
+        const bArr = [];
+        while (bArr.length < bCount) {
+          const r = Math.floor(Math.random() * cCount);
+          if (!bArr.includes(r)) bArr.push(r);
+        }
+        return bArr;
+      };
+      setBulletChambers(generateBullets(nextConfig.bullets, nextConfig.chambers));
+      setSpentChambers([]);
+      setCurrentChamber(0);
+      setBulletFired(false);
+
+      setStats(prev => {
+        const finishedRound = { 
+          ...prev.currentRoundData, 
+          accuracy: prev.currentRoundData.total > 0 ? (prev.currentRoundData.correct / prev.currentRoundData.total) * 100 : 0 
+        };
+        return {
+          ...prev,
+          roundsSurvived: prev.roundsSurvived + 1,
+          roundByRound: [...prev.roundByRound, finishedRound],
+          currentRoundData: { round: nextRound, correct: 0, total: 0, maxRisk: 0 }
+        };
+      });
+
+      setTimeout(() => setRoundTransition(false), 2500);
+      advanceQuestion();
+    } else {
+      advanceQuestion();
+    }
+  };
+
+  const advanceQuestion = () => {
     setTurn('player');
     setGameState('answering');
     setSelectedAnswer(null);
     setAnswerStatus(null);
     setShootTarget(null);
     setOverlayType(null);
-    setBulletFired(false);
-    setIsShotFired(false); // Reset shot fired lock for the new round
-    
-    // Increment rounds
-    setStats(prev => ({
-      ...prev,
-      roundsSurvived: prev.roundsSurvived + 1
-    }));
+    setIsShotFired(false);
 
-    // Advance to next question
     const nextQIndex = currentQuestionIndex + 1;
 
     if (nextQIndex >= questions.length) {
-      // Current batch exhausted — grab next batch from full pool
       const pool = questionPoolRef.current;
       let startIdx = poolIndexRef.current;
       
-      // If pool itself is exhausted, reshuffle full pool
       if (startIdx >= pool.length) {
         const reshuffled = [...pool];
         for (let i = reshuffled.length - 1; i > 0; i--) {
@@ -518,7 +623,6 @@ export default function App() {
         startIdx = 0;
       }
       
-      // Take next batch
       const endIdx = Math.min(startIdx + questionCount, pool.length);
       const nextBatch = questionPoolRef.current.slice(startIdx, endIdx);
       poolIndexRef.current = endIdx;
@@ -528,16 +632,70 @@ export default function App() {
     } else {
       setCurrentQuestionIndex(nextQIndex);
     }
+    questionStartTimeRef.current = Date.now();
     setBotMessage(getRandomElement(BOT_TAUNTS[botName].idle));
   };
 
   // Log Score & Terminate Session
   const endSession = () => {
+    // Calculate final metrics
+    const finalRoundData = { 
+      ...stats.currentRoundData, 
+      accuracy: stats.currentRoundData.total > 0 ? (stats.currentRoundData.correct / stats.currentRoundData.total) * 100 : 0 
+    };
+    // Include current round only if questions were answered in it, otherwise it's just an empty round state.
+    const fullRoundByRound = stats.currentRoundData.total > 0 
+      ? [...stats.roundByRound, finalRoundData]
+      : stats.roundByRound;
+
+    // Calculate trend
+    let trend = 'flat';
+    if (fullRoundByRound.length >= 2) {
+      const halfIndex = Math.ceil(fullRoundByRound.length / 2);
+      const firstHalfAcc = fullRoundByRound.slice(0, halfIndex).reduce((sum, r) => sum + r.accuracy, 0) / halfIndex;
+      const secondHalfAcc = fullRoundByRound.slice(halfIndex).reduce((sum, r) => sum + r.accuracy, 0) / Math.floor(fullRoundByRound.length / 2);
+      if (secondHalfAcc > firstHalfAcc + 5) trend = 'improving';
+      else if (secondHalfAcc < firstHalfAcc - 5) trend = 'declining';
+    }
+
+    // Calculate Stress Score based on the exact tracked answers
+    const lowRiskAcc = lowRiskTotal > 0 ? (lowRiskCorrect / lowRiskTotal) * 100 : 0;
+    const highRiskAcc = highRiskTotal > 0 ? (highRiskCorrect / highRiskTotal) * 100 : 0;
+    
+    let stressScore = 50;
+    if (highRiskTotal > 0) {
+      if (lowRiskTotal > 0) {
+        stressScore = 50 + ((highRiskAcc / lowRiskAcc) * 50);
+      } else {
+        stressScore = highRiskAcc;
+      }
+    } else {
+      stressScore = lowRiskAcc;
+    }
+    stressScore = Math.min(100, Math.max(0, Math.round(stressScore)));
+
     const finalResult = playerLives <= 0 ? 'DIED' : 'WON';
     const accuracy = stats.totalQuestionsAnswered > 0
       ? Math.round((stats.correctAnswers / stats.totalQuestionsAnswered) * 100)
       : 0;
-    
+    const avgResponseTimeMs = stats.totalQuestionsAnswered > 0 ? stats.totalResponseTimeMs / stats.totalQuestionsAnswered : 0;
+
+    // Ensure rounds completed is accurate
+    const completedRounds = Math.max(0, roundNumber - 1);
+
+    const enhancedStats = {
+      ...stats,
+      highestRiskFaced,
+      roundsSurvived: completedRounds,
+      roundByRound: fullRoundByRound,
+      trend,
+      stressScore,
+      lowRiskAcc,
+      highRiskAcc,
+      avgResponseTimeMs,
+      accuracy
+    };
+
     const scoreObject = {
       id: Date.now().toString(),
       name: playerName.trim() || 'REVISER',
@@ -550,13 +708,16 @@ export default function App() {
       difficulty: difficulty,
       botName: botName,
       result: finalResult,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      enhancedStats
     };
 
     const updatedLeaderboard = [scoreObject, ...leaderboardScores];
     setLeaderboardScores(updatedLeaderboard);
     localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(updatedLeaderboard));
 
+    setStats(enhancedStats);
+    // Explicitly update highestRiskFaced before sending to result screen, just in case
     setScreen('result');
   };
 
@@ -619,7 +780,7 @@ export default function App() {
                   disabled={screen === 'game'}
                   className={`py-1.5 text-[13px] font-bold transition-all border-b-2 ${
                     isActive
-                      ? 'border-[#f59e0b] text-[#f59e0b]'
+                      ? 'border-[#f59e0b] text-[#ffffff]'
                       : 'border-transparent text-[#a8a29e] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer'
                   }`}
                 >
@@ -644,18 +805,7 @@ export default function App() {
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
-            {/* Gemini Key Config */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className={`px-3 py-2 rounded-lg border text-[13px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                apiKey 
-                  ? 'border-[#f59e0b] text-[#f59e0b] bg-transparent hover:bg-[rgba(245,158,11,0.1)]' 
-                  : 'border-white/10 text-[#a8a29e] bg-transparent hover:text-white hover:border-[#f59e0b]/40'
-              }`}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{apiKey ? "Gemini Key Saved" : "Setup Gemini Key"}</span>
-            </button>
+
           </div>
         </div>
       </header>
@@ -680,8 +830,7 @@ export default function App() {
                 questionCount={questionCount}
                 setQuestionCount={setQuestionCount}
                 onStart={handleStartGame}
-                hasApiKey={!!apiKey}
-                onOpenSettings={() => setIsSettingsOpen(true)}
+
                 soundEnabled={soundEnabled}
                 onToggleSound={handleToggleSound}
                 onOpenHistory={() => setScreen('history')}
@@ -706,10 +855,15 @@ export default function App() {
                 questionIndex={currentQuestionIndex}
                 totalQuestions={questions.length}
                 roundNumber={roundNumber}
+                chamberCount={chamberCount}
+                bulletCount={bulletCount}
+                bulletsFiredThisRound={bulletsFiredThisRound}
+                roundTransition={roundTransition}
                 playerLives={playerLives}
                 botLives={botLives}
                 currentChamber={currentChamber}
                 spentChambers={spentChambers}
+                bulletChambers={bulletChambers}
                 bulletFired={bulletFired}
                 probability={getProbability()}
                 turn={turn}
@@ -736,6 +890,7 @@ export default function App() {
                 playerLives={playerLives}
                 botLives={botLives}
                 botName={botName}
+                roundNumber={roundNumber}
                 stats={stats}
                 leaderboardScores={leaderboardScores}
                 onClearLeaderboard={handleClearLeaderboard}
@@ -755,12 +910,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <ApiKeyModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSave={handleSaveApiKey}
-        savedKey={apiKey}
-      />
+
 
       <footer className="w-full text-center py-4 text-[9px] text-slate-700 font-mono tracking-widest z-10 select-none uppercase">
         // SYSTEM TERMINAL SECURE // GAMIFIED ACTIVE RECALL PROTOCOL ACTIVE
