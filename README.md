@@ -23,10 +23,6 @@ By combining AI-powered question generation with Russian Roulette mechanics, thi
   - **60 SECONDS:** Standard tactical mode.
   - **30 SECONDS:** Hardcore mode. If the timer hits zero, you lose your turn, and the AI immediately pulls the trigger on you.
 - **🖥️ Tactical Aesthetic:** A complete UI/UX designed around a gritty, amber-glow military CRT terminal, featuring perspective grids, CRT scanlines, and immersive dark-mode aesthetics.
-- **🤖 Adaptive AI Personalities:** Face off against three distinct AI bots depending on your chosen difficulty level:
-  - **CADET_7** - A nervous, inexperienced combat AI.
-  - **WARDEN** - A strict, protocol-driven enforcer.
-  - **CIPHER** - A cold, calculating mathematical probability matrix.
 - **🏆 Persistent Leaderboard:** All your survival runs are stored locally so you can track your high scores, accuracy, and maximum survived probability over time.
 
 ---
@@ -67,7 +63,7 @@ To use the question generation feature, you need a Google Gemini API key:
 
 ## 🎮 How to Play
 
-1. **Configure:** Enter your agent callsign (username), select a time limit difficulty, and choose how many total questions to extract (5, 10, or 15).
+1. **Configure:** Enter your agent callsign (username) and select a time limit difficulty.
 2. **Upload:** Drop your study material PDF into the terminal or paste raw text.
 3. **Load Gun:** Start the mission. The AI will generate questions based *only* on your uploaded text.
 4. **Survive:** 
