@@ -32,8 +32,8 @@ export default function GameScreen({
   bulletCount,
   bulletsFiredThisRound,
   roundTransition,
-  playerLives,
-  botLives,
+  playerScore,
+  botScore,
   currentChamber,
   spentChambers,
   bulletChambers,
@@ -60,35 +60,53 @@ export default function GameScreen({
   const isCorrect = gameState !== 'answering' && selectedAnswer === question.correctAnswer;
   const isWrong = gameState !== 'answering' && selectedAnswer && selectedAnswer !== question.correctAnswer;
 
+  const [timeLeft, setTimeLeft] = useState(difficulty === 'Hard' ? 30 : difficulty === 'Medium' ? 60 : null);
+
+  // 1. Setup/Reset the timer when a new question starts
+  useEffect(() => {
+    if (difficulty === 'Easy') return;
+    if (gameState === 'answering' && turn === 'player') {
+      setTimeLeft(difficulty === 'Hard' ? 30 : 60);
+    } else {
+      setTimeLeft(null);
+    }
+  }, [questionIndex, roundNumber, gameState, turn, difficulty]);
+
+  // 2. Countdown logic
+  useEffect(() => {
+    if (gameState !== 'answering' || turn !== 'player' || difficulty === 'Easy' || timeLeft === null) return;
+    
+    if (timeLeft <= 0) {
+      onAnswer(null); // Time out!
+      setTimeLeft(null); // Clear it so it doesn't immediately fire on next question
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft(t => (t !== null ? t - 1 : null));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, gameState, turn, difficulty, onAnswer]);
+
   const handleOptionClick = (optionKey) => {
     if (gameState !== 'answering') return;
     onAnswer(optionKey);
   };
 
-  const renderPlayerLives = () => {
+  const renderPlayerScore = () => {
     return (
-      <div className="flex gap-2 items-center h-full">
-        <span className="text-[10px] text-[#f59e0b] font-bold tracking-widest mr-2 uppercase">PLAYER_HP:</span>
-        <HeartbeatLine riskLevel={probability} className="w-[60px] mr-2" />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Heart 
-            key={i} 
-            className={`w-5 h-5 ${i < playerLives ? 'text-[#f59e0b] fill-[#f59e0b]' : 'text-[#2a2a2a] fill-[#2a2a2a]'}`} 
-          />
-        ))}
+      <div className="flex gap-2 items-center h-full bg-[rgba(245,158,11,0.1)] px-4 py-1 rounded-[8px] border border-[rgba(245,158,11,0.3)]">
+        <span className="text-[10px] text-[#f59e0b] font-bold tracking-widest mr-2 uppercase">SCORE:</span>
+        <AnimatedReadout value={playerScore} suffix=" PTS" className="text-xl font-black text-white tracking-widest drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
       </div>
     );
   };
 
-  const renderBotLives = () => {
+  const renderBotScore = () => {
     return (
-      <div className="flex gap-1 items-center mt-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skull 
-            key={i} 
-            className={`w-5 h-5 ${i < botLives ? 'text-[#f59e0b]' : 'text-[#2a2a2a]'}`} 
-          />
-        ))}
+      <div className="flex justify-between items-center mt-2 bg-[#1c1917] p-2 rounded">
+        <span className="text-[10px] text-[#a8a29e] font-bold tracking-widest uppercase">SCORE</span>
+        <AnimatedReadout value={botScore} suffix=" PTS" className="text-sm font-bold text-[#ef4444]" />
       </div>
     );
   };
@@ -232,7 +250,7 @@ export default function GameScreen({
           <div className="flex flex-col items-end justify-center mr-4">
             <span className="text-[10px] text-[#f59e0b] tracking-widest font-bold">ROUND <span className="text-[#f59e0b] font-bold leading-none text-sm">{roundNumber}</span></span>
           </div>
-          {renderPlayerLives()}
+          {renderPlayerScore()}
         </div>
 
         {/* LEFT COLUMN: Opponent Dashboard */}
@@ -241,7 +259,6 @@ export default function GameScreen({
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4 border-b border-[rgba(245,158,11,0.2)] pb-2">
                 <span className="text-[#f59e0b] text-[10px] font-bold tracking-[2px] uppercase">OPPONENT_SYS</span>
-                <span className="text-[#f59e0b] border border-[#f59e0b] bg-transparent rounded-[4px] px-2 py-0.5 text-[10px] uppercase font-bold">Lvl: {difficulty}</span>
               </div>
               
               <div className="flex flex-col items-center justify-center py-4 relative">
@@ -277,7 +294,7 @@ export default function GameScreen({
 
               <div className="mt-4 border-t border-[rgba(245,158,11,0.2)] pt-3">
                 <span className="text-[#a8a29e] text-[10px] uppercase font-bold tracking-widest">SYSTEM INTEGRITY</span>
-                {renderBotLives()}
+                {renderBotScore()}
               </div>
 
               {/* Bot Message Box */}
@@ -333,7 +350,7 @@ export default function GameScreen({
 
 
           {/* Chamber Panel */}
-          <div className="w-full max-w-[600px] z-30 mx-auto">
+          <div className="w-full max-w-[800px] z-30 mx-auto">
             <Cylinder
               currentChamber={currentChamber}
               spentChambers={spentChambers}
@@ -355,7 +372,11 @@ export default function GameScreen({
             <div className="relative z-10 text-white">
               <div className="text-[10px] uppercase tracking-[2px] border-b border-[rgba(245,158,11,0.2)] pb-2 mb-4 flex justify-between text-[#f59e0b] font-bold">
                 <span>QUERY TERMINAL</span>
-                <span>{questionIndex + 1}/{totalQuestions}</span>
+                {difficulty !== 'Easy' && gameState === 'answering' && turn === 'player' && (
+                  <span className={timeLeft <= 10 ? 'text-[#ef4444] animate-pulse' : 'text-[#f59e0b]'}>
+                    {timeLeft}s
+                  </span>
+                )}
               </div>
 
               <p className="text-[14px] font-normal leading-relaxed mb-6">

@@ -56,8 +56,8 @@ function generateDetailedVerdict(stats) {
 }
 
 export default function ResultScreen({
-  playerLives,
-  botLives,
+  playerScore,
+  botScore,
   roundNumber,
   stats,
   leaderboardScores,
@@ -66,8 +66,8 @@ export default function ResultScreen({
   onOpenHistory,
   botName
 }) {
-  const isVictory = playerLives > 0;
-  const reachedMax = playerLives > 0 && botLives > 0;
+  const isVictory = playerScore > botScore;
+  const reachedMax = true;
   
   const {
     accuracy = 0,
@@ -81,10 +81,8 @@ export default function ResultScreen({
   } = stats;
 
   const getGameEndMessage = () => {
-    if (reachedMax) return 'GAME REACHED MAXIMUM DIFFICULTY (ROUND 6 SURVIVED)';
-    if (playerLives <= 0) return `YOU SURVIVED ${stats.roundsSurvived} ROUNDS BEFORE ELIMINATION`;
-    if (botLives <= 0) return `${botName} ELIMINATED AT ROUND ${stats.roundsSurvived}`;
-    return 'UNKNOWN STATUS';
+    if (isVictory) return `YOU DEFEATED ${botName} WITH ${playerScore} POINTS!`;
+    return `YOU WERE DEFEATED. ${botName} SCORED ${botScore} POINTS.`;
   };
 
   const getAccuracyColor = (acc) => {
@@ -166,10 +164,12 @@ export default function ResultScreen({
                 <div className="text-[14px] font-bold">{getTrendIcon(trend)}</div>
               </div>
 
-              {/* Rounds Survived */}
+              {/* Final Score */}
               <div className="flex justify-between items-center bg-[rgba(255,255,255,0.03)] p-3 rounded">
-                <div className="text-[10px] text-[#a8a29e] tracking-widest font-bold uppercase">Rounds Survived</div>
-                <div className="text-[18px] font-bold text-white">{stats.roundsSurvived} <span className="text-[#57534e] text-sm">of 6</span></div>
+                <div className="text-[10px] text-[#a8a29e] tracking-widest font-bold uppercase">Final Score</div>
+                <div className="text-[24px] font-black text-[#f59e0b] drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]">
+                  <CountUpStat value={playerScore} /> <span className="text-[#57534e] text-sm font-bold">PTS</span>
+                </div>
               </div>
 
               {/* Highest Risk */}

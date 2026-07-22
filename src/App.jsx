@@ -116,8 +116,8 @@ export default function App() {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [roundNumber, setRoundNumber] = useState(1);
-  const [playerLives, setPlayerLives] = useState(3);
-  const [botLives, setBotLives] = useState(3);
+  const [playerScore, setPlayerScore] = useState(0);
+  const [botScore, setBotScore] = useState(0);
   
   // Revolver Cylinder State
   const [bulletChambers, setBulletChambers] = useState([]); // Array of bullet indices
@@ -141,12 +141,12 @@ export default function App() {
 
   function getRoundConfig(round) {
     const configs = {
-      1: { chambers: 6, bullets: 1 },
-      2: { chambers: 5, bullets: 2 },
-      3: { chambers: 4, bullets: 3 },
-      4: { chambers: 3, bullets: 2 },
-      5: { chambers: 2, bullets: 1 },
-      6: { chambers: 2, bullets: 2 }, // INSTANT DEATH ROUND
+      1: { chambers: 6, bullets: 1 }, // 16.7%
+      2: { chambers: 6, bullets: 2 }, // 33.3%
+      3: { chambers: 6, bullets: 3 }, // 50.0%
+      4: { chambers: 6, bullets: 4 }, // 66.7%
+      5: { chambers: 6, bullets: 5 }, // 83.3%
+      6: { chambers: 6, bullets: 6 }, // 100% INSTANT DEATH ROUND
     };
     return configs[round] || configs[6];
   }
@@ -300,8 +300,8 @@ export default function App() {
     setHighRiskCorrect(0);
     setHighRiskTotal(0);
     
-    setPlayerLives(3);
-    setBotLives(3);
+    setPlayerScore(0);
+    setBotScore(0);
     setRoundNumber(1);
     setCurrentQuestionIndex(0);
     setTurn('player');
@@ -405,7 +405,7 @@ export default function App() {
     return () => {
       if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     };
-  }, [screen, gameState, overlayType, currentChamber, bulletFired, shootTarget, turn, playerLives, botLives]);
+  }, [screen, gameState, overlayType, currentChamber, bulletFired, shootTarget, turn, playerScore, botScore]);
 
   // Player Answer Event Handler
   const handlePlayerAnswer = (optionKey) => {
@@ -439,10 +439,12 @@ export default function App() {
     }
 
     if (isCorrect) {
+      setPlayerScore(prev => prev + 100);
       setAnswerStatus('correct');
       setGameState('shooting_choice');
       playShotSound('ding');
     } else {
+      setBotScore(prev => prev + 100);
       setAnswerStatus('incorrect');
       
       // INCORRECT -> Turn passes to BOT_X. BOT_X mocks player, then takes the gun to shoot them.
@@ -499,12 +501,14 @@ export default function App() {
 
       if (shooter === 'player') {
         if (target === 'self') {
-          setPlayerLives(l => l - 1);
+          setPlayerScore(l => l - 500);
         } else {
-          setBotLives(l => l - 1);
+          setBotScore(l => l - 500);
+          setPlayerScore(l => l + 300);
         }
       } else {
-        setPlayerLives(l => l - 1);
+        setPlayerScore(l => l - 500);
+        setBotScore(l => l + 300);
         setBotMessage(getRandomElement(BOT_TAUNTS[botName].shootPlayerBang));
       }
     } else {
@@ -512,14 +516,18 @@ export default function App() {
       playShotSound('click');
 
       if (shooter === 'player' && target === 'self') {
+        setPlayerScore(l => l + 200);
         setStats(prev => ({
           ...prev,
           shotsSurvived: prev.shotsSurvived + 1,
-          maxProbabilitySurvived: Math.max(prev.maxProbabilitySurvived, currentProb)
+          maxProbabilitySurvived: Math.max(prev.maxProbabilitySurvived, currentRisk)
         }));
+      } else if (shooter === 'player' && target === 'bot') {
+        setBotScore(l => l + 200);
       }
 
       if (shooter === 'bot') {
+        setPlayerScore(l => l + 200);
         setBotMessage(getRandomElement(BOT_TAUNTS[botName].shootPlayerBlank));
       }
     }
@@ -535,14 +543,7 @@ export default function App() {
 
   // Next Question/Round transitions
   const handleNextQuestion = () => {
-    // Check for game over (after deducting life)
-    const deadPlayer = playerLives <= 0;
-    const deadBot = botLives <= 0;
-
-    if (deadPlayer || deadBot) {
-      endSession();
-      return;
-    }
+    // Game no longer ends on lives, it always plays all 6 rounds.
 
     const config = getRoundConfig(roundNumber);
     const allShotsFired = shotsFiredThisRound >= config.chambers;
@@ -674,7 +675,7 @@ export default function App() {
     }
     stressScore = Math.min(100, Math.max(0, Math.round(stressScore)));
 
-    const finalResult = playerLives <= 0 ? 'DIED' : 'WON';
+    const finalResult = playerScore > botScore ? 'WON' : 'DEFEATED';
     const accuracy = stats.totalQuestionsAnswered > 0
       ? Math.round((stats.correctAnswers / stats.totalQuestionsAnswered) * 100)
       : 0;
@@ -699,6 +700,8 @@ export default function App() {
     const scoreObject = {
       id: Date.now().toString(),
       name: playerName.trim() || 'REVISER',
+      score: playerScore,
+      botScore: botScore,
       roundsSurvived: stats.roundsSurvived,
       correctAnswers: stats.correctAnswers,
       totalQuestionsAnswered: stats.totalQuestionsAnswered,
@@ -859,8 +862,8 @@ export default function App() {
                 bulletCount={bulletCount}
                 bulletsFiredThisRound={bulletsFiredThisRound}
                 roundTransition={roundTransition}
-                playerLives={playerLives}
-                botLives={botLives}
+                playerScore={playerScore}
+                botScore={botScore}
                 currentChamber={currentChamber}
                 spentChambers={spentChambers}
                 bulletChambers={bulletChambers}
@@ -887,8 +890,8 @@ export default function App() {
               <ResultScreen
                 playerName={playerName}
                 difficulty={difficulty}
-                playerLives={playerLives}
-                botLives={botLives}
+                playerScore={playerScore}
+                botScore={botScore}
                 botName={botName}
                 roundNumber={roundNumber}
                 stats={stats}

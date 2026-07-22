@@ -3,10 +3,10 @@ import { Trophy, Zap, Trash2 } from 'lucide-react';
 export default function Leaderboard({ scores = [], onClear, theme = 'crt' }) {
   const isHome = theme === 'home';
 
-  // Sort scores: rounds survived desc, then difficulty weight, then date desc
+  // Sort scores: score desc, then difficulty weight, then date desc
   const sortedScores = [...scores].sort((a, b) => {
-    if (b.roundsSurvived !== a.roundsSurvived) {
-      return b.roundsSurvived - a.roundsSurvived;
+    if (b.score !== a.score) {
+      return (b.score || 0) - (a.score || 0);
     }
     const difficultyWeight = { hard: 3, medium: 2, easy: 1 };
     const diffA = difficultyWeight[a.difficulty?.toLowerCase()] || 0;
@@ -68,7 +68,7 @@ export default function Leaderboard({ scores = [], onClear, theme = 'crt' }) {
                 <tr className="border-b border-[rgba(255,255,255,0.04)] uppercase text-[10px] text-[#57534e]">
                   <th className="py-[12px] pr-2 font-normal">Agent</th>
                   <th className="py-[12px] px-2 text-center font-normal">Accuracy</th>
-                  <th className="py-[12px] px-2 text-center font-normal">Rounds</th>
+                  <th className="py-[12px] px-2 text-center font-normal">Score</th>
                   <th className="py-[12px] px-2 text-center font-normal">Level</th>
                   <th className="py-[12px] px-2 text-center font-normal">Result</th>
                   <th className="py-[12px] pl-2 text-right font-normal">Timestamp</th>
@@ -89,7 +89,7 @@ export default function Leaderboard({ scores = [], onClear, theme = 'crt' }) {
                         {score.accuracy ?? 0}%
                       </td>
                       <td className="py-[12px] px-2 text-center text-white text-[13px]">
-                        {score.roundsSurvived}
+                        {score.score || 0}
                       </td>
                       <td className="py-[12px] px-2 text-center">
                         <span className={`px-[8px] py-[2px] rounded-full text-[10px] border ${
@@ -162,7 +162,7 @@ export default function Leaderboard({ scores = [], onClear, theme = 'crt' }) {
                 <tr className="border-b uppercase tracking-wider text-[10px] font-bold border-[#00ff41]/30 text-[#00ff41]/70">
                   <th className="py-3 pr-2">AGENT</th>
                   <th className="py-3 px-2 text-center">ACCURACY</th>
-                  <th className="py-3 px-2 text-center">ROUNDS</th>
+                  <th className="py-3 px-2 text-center">SCORE</th>
                   <th className="py-3 px-2 text-center">LEVEL</th>
                   <th className="py-3 px-2 text-center">RESULT</th>
                   <th className="py-3 pl-2 text-right">TIMESTAMP</th>
@@ -189,7 +189,7 @@ export default function Leaderboard({ scores = [], onClear, theme = 'crt' }) {
                         {score.accuracy ?? 0}%
                       </td>
                       <td className="py-3 px-2 text-center font-bold text-[#00ff41]">
-                        {score.roundsSurvived}
+                        {score.score || 0}
                       </td>
                       <td className="py-3 px-2 text-center uppercase">
                         <span className={`px-2 py-0.5 rounded-sm text-[9px] border font-bold ${

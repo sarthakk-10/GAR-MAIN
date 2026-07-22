@@ -327,55 +327,31 @@ export default function HomeScreen({
                 )}
               </div>
 
-              {/* Selectors - Side by side */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] uppercase text-[#57534e]">
-                    Difficulty
-                  </label>
-                  <div className="flex gap-1.5">
-                    {[
-                      { id: 'Easy', bot: 'CADET_7' },
-                      { id: 'Medium', bot: 'WARDEN' },
-                      { id: 'Hard', bot: 'CIPHER' }
-                    ].map(({ id, bot }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setDifficulty(id)}
-                        className={`flex flex-col items-center justify-center flex-1 h-[42px] rounded-[6px] transition-all cursor-pointer border ${
-                          difficulty === id 
-                            ? 'bg-[rgba(245,158,11,0.15)] border-[#f59e0b] text-[#f59e0b]' 
-                            : 'bg-transparent border-[rgba(255,255,255,0.08)] text-[#57534e]'
-                        }`}
-                      >
-                        <span className={`text-[11px] leading-tight ${difficulty === id ? 'font-bold' : ''}`}>{id}</span>
-                        <span className="text-[9px] opacity-70 leading-tight">vs {bot}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] uppercase text-[#57534e]">
-                    Chambers
-                  </label>
-                  <div className="flex gap-1.5">
-                    {[5, 10, 15].map((count) => (
-                      <button
-                        key={count}
-                        type="button"
-                        onClick={() => setQuestionCount(count)}
-                        className={`flex-1 h-[42px] text-[11px] rounded-[6px] transition-all cursor-pointer border ${
-                          questionCount === count 
-                            ? 'bg-[rgba(245,158,11,0.15)] border-[#f59e0b] text-[#f59e0b] font-bold' 
-                            : 'bg-transparent border-[rgba(255,255,255,0.08)] text-[#57534e]'
-                        }`}
-                      >
-                        {count}
-                      </button>
-                    ))}
-                  </div>
+              {/* Difficulty / Timer Mode */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase text-[#57534e]">
+                  Difficulty (Time Limit)
+                </label>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'Easy', label: 'UNLIMITED', sub: 'No rush' },
+                    { id: 'Medium', label: '60 SECONDS', sub: 'Standard' },
+                    { id: 'Hard', label: '30 SECONDS', sub: 'Hardcore' }
+                  ].map(({ id, label, sub }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setDifficulty(id)}
+                      className={`flex flex-col items-center justify-center flex-1 h-[42px] rounded-[6px] transition-all cursor-pointer border ${
+                        difficulty === id 
+                          ? 'bg-[rgba(245,158,11,0.15)] border-[#f59e0b] text-[#f59e0b]' 
+                          : 'bg-transparent border-[rgba(255,255,255,0.08)] text-[#57534e]'
+                      }`}
+                    >
+                      <span className={`text-[11px] leading-tight ${difficulty === id ? 'font-bold' : ''}`}>{label}</span>
+                      <span className="text-[9px] opacity-70 leading-tight">{sub}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

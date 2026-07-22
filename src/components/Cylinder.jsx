@@ -28,7 +28,7 @@ export default function Cylinder({ currentChamber, spentChambers, isSpinning, bu
           const isBullet = bulletChambers.includes(index);
           const isFiredBullet = bulletFired && isActive && isBullet;
 
-          let chamberClass = "w-[48px] h-[48px] md:w-[56px] md:h-[56px] shrink-0 rounded-full flex items-center justify-center font-bold text-[12px] md:text-[13px] transition-all duration-300";
+          let chamberClass = "w-[40px] h-[40px] md:w-[48px] md:h-[48px] shrink-0 rounded-full flex items-center justify-center font-bold text-[12px] transition-all duration-300";
           let label = "";
 
           if (isSpinning) {
