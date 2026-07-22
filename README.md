@@ -56,8 +56,11 @@ npm run dev
 ### 3. Setup Gemini API Key
 To use the question generation feature, you need a Google Gemini API key:
 1. Get a free API key from [Google AI Studio](https://aistudio.google.com/).
-2. Open the app, click the **Settings** icon (gear) in the top right navbar.
-3. Paste your key and hit **Save**. (The key is stored securely in your browser's local storage).
+2. Create a `.env` file in the root of the project directory.
+3. Add the following line to the file, replacing `your_api_key_here` with your actual key:
+   ```env
+   VITE_GEMINI_API_KEY=your_api_key_here
+   ```
 
 ---
 
@@ -66,9 +69,11 @@ To use the question generation feature, you need a Google Gemini API key:
 1. **Configure:** Enter your agent callsign (username) and select a time limit difficulty.
 2. **Upload:** Drop your study material PDF into the terminal or paste raw text.
 3. **Load Gun:** Start the mission. The AI will generate questions based *only* on your uploaded text.
-4. **Survive:** 
-   - **Correct Answer:** You get the gun. Choose to shoot the Opponent or take a risk and shoot Yourself for bonus points. 
-   - **Incorrect / Timeout:** The Opponent steals the gun and aims at you. 
+4. **Survive & Score:** 
+   - **Correct Answer (+100 pts):** You get the gun.
+   - **Shoot Opponent:** Hit them for **+300 pts** (they lose 500), or miss (click) and they gain **+200 pts**.
+   - **Shoot Yourself:** Prove your bravery! If you survive a click, you gain **+200 pts**. If you shoot yourself (bang), you lose **-500 pts**.
+   - **Incorrect / Timeout:** The Opponent gains +100 pts, steals the gun, and aims at you. If they hit you (bang), you lose **-500 pts** and they gain **+300 pts**. If you survive (click), you get a **+200 pts** relief bonus!
    - **The Cylinder:** Watch the chamber index. Round 1 has 1 bullet in 6 chambers (16.7%). Round 5 has 5 bullets in 6 chambers (83.3%). It takes multiple hits to kill the opponent or die trying. 
 
 Good luck, Candidate. 
