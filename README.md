@@ -74,7 +74,7 @@ To use the question generation feature, you need a Google Gemini API key:
    - **Shoot Opponent:** Hit them for **+300 pts** (they lose 500), or miss (click) and they gain **+200 pts**.
    - **Shoot Yourself:** Prove your bravery! If you survive a click, you gain **+200 pts**. If you shoot yourself (bang), you lose **-500 pts**.
    - **Incorrect / Timeout:** The Opponent gains +100 pts, steals the gun, and aims at you. If they hit you (bang), you lose **-500 pts** and they gain **+300 pts**. If you survive (click), you get a **+200 pts** relief bonus!
-   - **The Cylinder:** Watch the chamber index. Round 1 has 1 bullet in 6 chambers (16.7%). Round 5 has 5 bullets in 6 chambers (83.3%). It takes multiple hits to kill the opponent or die trying. 
+   - **The 36-Shot Gauntlet:** The game consists of 6 escalating rounds (36 questions total). Every 6 shots fired, you advance to the next round, and the revolver gets loaded with an additional bullet. Round 1 starts with 1 bullet (16.7% risk), progressing all the way to Round 6 (6 bullets - 100% Instant Death!). Survive all 36 shots to complete the mission and record your high score! 
 
 Good luck, Candidate. 
 
